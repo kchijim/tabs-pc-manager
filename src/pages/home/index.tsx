@@ -16,7 +16,7 @@ import {
   updateFlatNavigationRoutes,
 } from "./util";
 import styles from "./index.module.less";
-import { useHistory, useLocation } from "react-router";
+import { useHistory, useRouteMatch } from "react-router";
 import { MenuFoldOutlined, MenuUnfoldOutlined } from "@ant-design/icons";
 import TabsDropdown from "./TabsDropdown";
 import HomeRightHeader from "./RightHeader";
@@ -27,31 +27,33 @@ export default function Home() {
   const [panes, setPanes] = useState<NavigationTabPaneProps[]>([HOME_PANE]);
   const [openKeys, setOpenKeys] = useState<string[]>([]);
   const history = useHistory();
-  const location = useLocation();
-  const selectedKeys = useMemo(() => [location.pathname], [location.pathname]);
+  const routeMatch = useRouteMatch();
+  const selectedKeys = useMemo(() => [routeMatch.path], [routeMatch.path]);
 
   const [collapsed, setCollapsed] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const refreshTimeout = useRef<null | number>(null);
 
-  const navigationHandler = useCallback((routeInfo: NavigationRouteProps) => {
-    // console.log(routeInfo);
+  const navigationHandler = useCallback(
+    (routeInfo: NavigationRouteProps & { url: string }) => {
+      // console.log(routeInfo);
 
-    const tabKey = routeInfo.path;
+      setPanes((p) => {
+        if (!p.find((item) => item.tabKey === routeInfo.url)) {
+          const pane: NavigationTabPaneProps = {
+            tab: routeInfo.name,
+            tabKey: routeInfo.url,
+            path: routeInfo.path,
+          };
 
-    setPanes((p) => {
-      if (!p.find((item) => item.tabKey === tabKey)) {
-        const pane: NavigationTabPaneProps = {
-          tab: routeInfo.name,
-          tabKey,
-        };
+          return p.concat(pane);
+        }
 
-        return p.concat(pane);
-      }
-
-      return p;
-    });
-  }, []);
+        return p;
+      });
+    },
+    []
+  );
 
   /**
    * 点击menu时 生成新的tab页面或跳转到已存在的tab页面
@@ -61,7 +63,7 @@ export default function Home() {
       const routeInfo = getNavigationRouteInfo(info.key, flatNavigationRoutes);
 
       if (routeInfo) {
-        navigationHandler(routeInfo);
+        navigationHandler({ ...routeInfo, url: routeInfo.path });
 
         history.push(routeInfo.path);
       }
@@ -76,9 +78,9 @@ export default function Home() {
     (targetKey: any, action: "add" | "remove") => {
       if (action === "remove") {
         const newPanes = panes.filter((item) => item.tabKey !== targetKey);
-        let newActiveKey = location.pathname;
+        let newActiveKey = routeMatch.url;
 
-        if (targetKey === location.pathname) {
+        if (targetKey === routeMatch.url) {
           const removeIndex = panes.findIndex(
             (item) => item.tabKey === targetKey
           );
@@ -91,7 +93,7 @@ export default function Home() {
         history.replace(newActiveKey);
       }
     },
-    [location.pathname, panes]
+    [routeMatch.url, panes]
   );
 
   /**
@@ -108,13 +110,13 @@ export default function Home() {
     (action: string) => {
       switch (action) {
         case "current":
-          onTabEdit(location.pathname, "remove");
+          onTabEdit(routeMatch.url, "remove");
           break;
         case "other":
           setPanes((p) =>
             p.filter(
               (item) =>
-                item.tabKey === location.pathname ||
+                item.tabKey === routeMatch.url ||
                 item.tabKey === HOME_PANE.tabKey
             )
           );
@@ -127,7 +129,7 @@ export default function Home() {
           break;
       }
     },
-    [location.pathname, onTabEdit]
+    [routeMatch.url, onTabEdit]
   );
 
   /**
@@ -166,8 +168,8 @@ export default function Home() {
    * 针对跳转tab页面后，tab页面所在的submenu没打开
    */
   useEffect(() => {
-    setOpenKeys(getNavigationParentRoutes(location.pathname, navigationRoutes));
-  }, [location.pathname]);
+    setOpenKeys(getNavigationParentRoutes(routeMatch.path, navigationRoutes));
+  }, [routeMatch.url]);
 
   /**
    * 针对页面组件里使用history做路由跳转
@@ -175,18 +177,18 @@ export default function Home() {
   useEffect(() => {
     if (!!menuData.length) {
       const routeInfo = getNavigationRouteInfo(
-        location.pathname,
+        routeMatch.path,
         flatNavigationRoutes
       );
 
       if (routeInfo) {
-        navigationHandler(routeInfo);
+        navigationHandler({ ...routeInfo, url: routeMatch.url });
       } else {
         /** 如果没有找到当前路径对应的路由，会重定向到首页 */
         history.replace("/home");
       }
     }
-  }, [menuData, location.pathname]);
+  }, [menuData, routeMatch.url]);
 
   /**
    * 注销页面时，清除 刷新tab页 计时器
@@ -232,13 +234,13 @@ export default function Home() {
                 className={styles.navigation_tabs}
                 hideAdd
                 type="editable-card"
-                activeKey={location.pathname}
+                activeKey={routeMatch.url}
                 onChange={onTabChange}
                 onEdit={onTabEdit}
                 tabBarExtraContent={{
                   right: (
                     <TabsDropdown
-                      activeKey={location.pathname}
+                      activeKey={routeMatch.url}
                       panes={panes}
                       refreshing={refreshing}
                       removeTabPanes={removeTabPanes}
@@ -255,9 +257,7 @@ export default function Home() {
                   >
                     <NavigationTabPane
                       {...pane}
-                      refreshing={
-                        refreshing && pane.tabKey === location.pathname
-                      }
+                      refreshing={refreshing && pane.tabKey === routeMatch.url}
                       navigateTo={onNavigate}
                     />
                   </Tabs.TabPane>

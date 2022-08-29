@@ -5,7 +5,7 @@ import { flatNavigationRoutes, getNavigationRouteInfo } from "./util";
 export interface NavigationTabPaneProps {
   tab: string;
   tabKey: string;
-  params?: any;
+  path: string;
 }
 
 interface Props extends NavigationTabPaneProps {
@@ -14,7 +14,7 @@ interface Props extends NavigationTabPaneProps {
 }
 
 const NavigationTabPane: React.FC<Props> = ({
-  tabKey: initPath,
+  path: initPath,
   refreshing,
   ...props
 }) => {

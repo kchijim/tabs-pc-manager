@@ -169,4 +169,5 @@ export function getNavigationParentRoutes(
 export const HOME_PANE: NavigationTabPaneProps = {
   tab: "首页",
   tabKey: "/home",
+  path: "/home",
 };
